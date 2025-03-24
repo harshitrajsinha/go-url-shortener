@@ -80,28 +80,19 @@ func getClientIpAddr(r *http.Request) string{
 // Main handler
 func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	var requestUrl RequestUrl
-	const SupabaseClientKey string = "SupabaseClient"
-	client, ok := r.Context().Value(SupabaseClientKey).(*supabase.Client)
-	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
-		log.Fatal("Error initializing client for handler - shortid creation")
-		return
-	}
 
-	// Get url
+	// Get request body
 	if err := json.NewDecoder(r.Body).Decode(&requestUrl); err != nil{
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusBadRequest, Message: "Invalid JSON", Reference: "{url:your-url}"})
 		return
 	}
 	if requestUrl.Url == ""{
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusBadRequest, Message: "URL is missing", Reference: "{url:your-url}"})
-		log.Fatal("URL is empty")
+		log.Println("URL is empty")
 		return
 	}
 
@@ -110,7 +101,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusForbidden, Message: "URL is not valid", Reference: "{url:https://some-valid-url.domain}"})
-		log.Fatal("Requested url is not valid ", requestUrl.Url)
+		log.Println("Requested url is not valid ", requestUrl.Url)
 		return
 	}
 
@@ -135,7 +126,17 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Error fetching request"})
-		log.Fatal("IP address not received")
+		log.Println("IP address not received")
+		return
+	}
+
+	const SupabaseClientKey string = "SupabaseClient"
+	client, ok := r.Context().Value(SupabaseClientKey).(*supabase.Client)
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
+		log.Fatal("Error initializing client for handler - shortid creation")
 		return
 	}
 
@@ -155,7 +156,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusConflict)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusConflict, Message: "URL already shorten", Reference: string(data)})
-		log.Fatal("URL already exists in database")
+		log.Println("URL already exists in database")
 		return
 	}	
 	
@@ -165,7 +166,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Error shortening URL, try after sometime"})
-		log.Fatal("Shortid not generated")
+		log.Println("Shortid not generated")
 		return
 	}
 	
@@ -181,7 +182,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// send response
-	err = json.NewEncoder(w).Encode(Response{Code: http.StatusOK, Message: "Shorten url generated successfully", Reference: string(r.Host) + "/" + shortId})
+	err = json.NewEncoder(w).Encode(Response{Code: http.StatusOK, Message: "Shorten url generated successfully", Reference: string(r.Host) + "/api/v1/redirect/" + shortId})
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
@@ -192,6 +193,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
+https not present
 check if url's host is of same server then prevent
 csrf prevention
 */

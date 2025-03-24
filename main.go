@@ -55,6 +55,9 @@ func main(){
 	router.HandleFunc("/", handleHomeRoute).Methods("GET")
 	router.HandleFunc("/api/v1/shorturl", routes.HandleShortIdCreation).Methods("POST")
 	router.HandleFunc("/api/v1/redirect/{shortid}", routes.HandleUrlRedirection).Methods("GET")
+	router.HandleFunc("/api/v1/urls", routes.HandleListUrls).Methods("GET")
+	router.HandleFunc("/api/v1/udpate/{shortid}", routes.HandleUrlUpdate).Methods("PUT")
+	router.HandleFunc("/api/v1/delete/{shortid}", routes.HandleUrlDelete).Methods("DELETE")
 	
 	fmt.Println("Listening at PORT ", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
