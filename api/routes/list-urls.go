@@ -6,32 +6,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/supabase-community/supabase-go"
 )
 
 // utils -> Resposne struct, generateShortId func
 
 
-func HandleUrlRedirection(w http.ResponseWriter, r *http.Request) {
-
-	var queryParams map[string]string = mux.Vars(r)
-	var shortID string = queryParams["shortid"]
-
-	// Get shortid from path variable
-	if shortID == ""{
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusBadRequest, Message: "shortID is missing", Reference: "/api/v1/redirect/XXXXXXXX"})
-		log.Println("Error shortid is missing")
-		return
-	}else if len(shortID) != 8{
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusBadRequest, Message: "Invalid shortID", Reference: "/api/v1/redirect/XXXXXXXX"})
-		log.Println("insufficient shortID length")
-		return
-	}
+func HandleListUrls(w http.ResponseWriter, r *http.Request) {
 
 	// get client ip address 
 	clientIpAddr := getClientIpAddr(r)
@@ -70,9 +51,9 @@ func HandleUrlRedirection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// get redirect url
+	// get all data wrt ip address
 	var rowData []map[string]interface{}
-	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", networkID).Eq("short_id", shortID).Execute()
+	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", networkID).Execute()
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
@@ -83,17 +64,23 @@ func HandleUrlRedirection(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(data, &rowData)
 	
 	if len(rowData) == 0{
-		// Redirect URL not found
+		// No data found
 		w.WriteHeader(http.StatusNotFound)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusNotFound, Message: "Redirect URL not found", Reference: "Length of shortid must be 8"})
-		log.Println("Redirect url not found")
+		json.NewEncoder(w).Encode(Response{Code: http.StatusNotFound, Message: "No data found", Reference: "Shorten a URL and then try again"})
+		log.Println("No data found")
 		return
 	}else{
-		// Redirect to URL
-		w.Header().Set("Location", rowData[0]["redirect_url"].(string))
-		w.WriteHeader(http.StatusPermanentRedirect)
-		http.Redirect(w, r, rowData[0]["redirect_url"].(string), http.StatusPermanentRedirect)
+		// Retrieve all to URL
+		var responseData []map[string]string
+		w.WriteHeader(http.StatusOK)
+		for _, item := range rowData{
+			responseData = append(responseData, map[string]string{item["short_id"].(string): item["redirect_url"].(string)})
+		}
+		dataToSend, _ := json.Marshal(responseData)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(Response{Code: http.StatusOK, Message: "Data found", Reference: string(dataToSend)})
+		log.Println("Data retrieved")
 		return
 	}
 }
