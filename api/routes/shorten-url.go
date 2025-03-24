@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"strings"
 
@@ -18,7 +19,7 @@ type RequestUrl struct{
 type Response struct{
 	Code int `json:"code"`
 	Message string `json:"message"`
-	Reference string `json:"Reference,omitempty"`
+	Reference string `json:"reference,omitempty"`
 }
 
 // Type for inserting data to supabase
@@ -40,6 +41,20 @@ func generateShortId() string{
 		shortId.WriteString(string(possibleChars[randomIndex]))
 	}
 	return shortId.String()
+}
+
+func convertIPv6LoopbackToIPv4(ipStr string) string {
+	trimmed := strings.Trim(ipStr, "[]")
+	ip := net.ParseIP(trimmed)
+	if ip == nil {
+		return ipStr
+	}
+
+	if ip.Equal(net.IPv6loopback) {
+		return "127.0.0.1"
+	}
+
+	return ipStr
 }
 
 // Function to fetch client's ip address
@@ -101,6 +116,20 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 
 	// get client ip address 
 	clientIpAddr := getClientIpAddr(r)
+	var networkID string
+
+	// if ipv6
+	if strings.Contains(clientIpAddr, "]"){
+		indexVal := strings.Index(clientIpAddr, "]:")
+		if indexVal != -1{
+			clientIpAddr = clientIpAddr[:indexVal+1]
+		}
+		networkID = convertIPv6LoopbackToIPv4(clientIpAddr)
+	}else{
+		networkID = strings.Split(clientIpAddr, ":")[0]
+	// 	octet := strings.Split(networkID, ".")
+	// 	_ = octet[len(octet)-1]
+	}
 	
 	if clientIpAddr == ""{
 		w.WriteHeader(http.StatusInternalServerError)
@@ -112,7 +141,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 
 	// check if url already exists
 	var doesURLExists []map[string]interface{}
-	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", clientIpAddr).Eq("redirect_url", requestUrl.Url).Execute()
+	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", networkID).Eq("redirect_url", requestUrl.Url).Execute()
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
@@ -141,7 +170,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Insert into database
-	var newData DataToInsert = DataToInsert{RedirectURL: requestUrl.Url, ShortID: shortId, ClientIP: clientIpAddr}
+	var newData DataToInsert = DataToInsert{RedirectURL: requestUrl.Url, ShortID: shortId, ClientIP: networkID}
 	_, _, err = client.From("go_url_shortner").Insert(newData, false, "", "", "").Execute()
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)

@@ -53,7 +53,8 @@ func main(){
 
 	// set routes
 	router.HandleFunc("/", handleHomeRoute).Methods("GET")
-	router.HandleFunc("/api/v1/shorturl", routes.HandleShortIdCreation).Methods("GET")
+	router.HandleFunc("/api/v1/shorturl", routes.HandleShortIdCreation).Methods("POST")
+	router.HandleFunc("/api/v1/redirect/{shortid}", routes.HandleUrlRedirection).Methods("GET")
 	
 	fmt.Println("Listening at PORT ", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
