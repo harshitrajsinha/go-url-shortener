@@ -29,6 +29,8 @@ type DataToInsert struct{
 	ClientIP string `json:"client_ip_addr"`
 }
 
+type contextKey string
+
 // Function to generate shortid of 8 characters
 func generateShortId() string{
 	// uuid.New().String[:8]  from "github.com/google/uuid"
@@ -131,12 +133,13 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	const SupabaseClientKey string = "SupabaseClient"
+
 	client, ok := r.Context().Value(SupabaseClientKey).(*supabase.Client)
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
-		log.Fatal("Error initializing client for handler - shortid creation")
+		log.Fatal("Error initializing client for handler")
 		return
 	}
 

@@ -66,7 +66,7 @@ func HandleUrlRedirection(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
-		log.Fatal("Error initializing client for handler - shortid creation")
+		log.Fatal("Error initializing client for handler")
 		return
 	}
 
