@@ -85,9 +85,9 @@ func HandleUrlRedirection(w http.ResponseWriter, r *http.Request) {
 		return
 	}else{
 		// Redirect to URL
-		w.Header().Set("Location", rowData[0]["redirect_url"].(string))
+		w.Header().Set("Location", rowData[0]["original_url"].(string))
 		w.WriteHeader(http.StatusPermanentRedirect)
-		http.Redirect(w, r, rowData[0]["redirect_url"].(string), http.StatusPermanentRedirect)
+		http.Redirect(w, r, rowData[0]["original_url"].(string), http.StatusPermanentRedirect)
 		return
 	}
 }

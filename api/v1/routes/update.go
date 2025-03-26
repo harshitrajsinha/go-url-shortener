@@ -11,6 +11,12 @@ import (
 	"github.com/supabase-community/supabase-go"
 )
 
+type updateResponse struct{
+	PreviousUrl string `json:"previous-url"`
+	OriginalUrl string `json:"original-url"`
+	ShortID string `json:"short-id"`
+}
+
 type UpdateRequest struct{
 	Url string `json:"url"`
 }
@@ -112,8 +118,10 @@ func HandleUrlUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}else{
 		// update data
-		newData := map[string]interface{}{"redirect_url": updateRequest.Url}
-		result, _,  err:= client.From("go_url_shortner").Update(newData, "", "exact").Eq("client_ip_addr", clientIpAddr).Eq("short_id", shortID).Execute()
+		var previousUrl string= rowData[0]["original_url"].(string) // previous url to be updated
+		var newData updateResponse
+		dataToUpdate := map[string]interface{}{"original_url": updateRequest.Url}
+		result, _,  err:= client.From("go_url_shortner").Update(dataToUpdate, "", "exact").Eq("client_ip_addr", clientIpAddr).Eq("short_id", shortID).Execute()
 		if err != nil{
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Header().Set("Content-Type", "application/json")
@@ -122,8 +130,9 @@ func HandleUrlUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		json.Unmarshal(result, &rowData)
+		newData = updateResponse{PreviousUrl: previousUrl, OriginalUrl: rowData[0]["original_url"].(string), ShortID: rowData[0]["short_id"].(string)}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusOK, Message: "Data updated successfully", Data: rowData})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusOK, Message: "Data updated successfully", Data: newData})
 		log.Println("Data updated successfully")
 		return
 	}

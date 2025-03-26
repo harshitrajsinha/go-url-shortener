@@ -69,7 +69,7 @@ func HandleListUrls(w http.ResponseWriter, r *http.Request) {
 		var responseData []map[string]string
 		w.WriteHeader(http.StatusOK)
 		for _, item := range rowData{
-			responseData = append(responseData, map[string]string{item["short_id"].(string): item["redirect_url"].(string)})
+			responseData = append(responseData, map[string]string{item["short_id"].(string): item["original_url"].(string)})
 		}
 		
 		w.Header().Set("Content-Type", "application/json")

@@ -18,12 +18,10 @@ type RequestUrl struct{
 
 // Type for inserting data to supabase
 type DataToInsert struct{
-	RedirectURL string `json:"redirect_url"`
+	RedirectURL string `json:"original_url"`
 	ShortID string	`json:"short_id"`
 	ClientIP string `json:"client_ip_addr"`
 }
-
-type contextKey string
 
 // Function to generate shortid of 8 characters
 func generateShortId() string{
@@ -91,7 +89,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 
 	// check if url already exists
 	var doesURLExists []map[string]interface{}
-	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", clientIpAddr).Eq("redirect_url", requestUrl.Url).Execute()
+	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", clientIpAddr).Eq("original_url", requestUrl.Url).Execute()
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
@@ -131,7 +129,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// send response
-	err = json.NewEncoder(w).Encode(common.Response{Code: http.StatusOK, Message: "Shorten url generated successfully", Data: map[string]string{"shortened-url": string(r.Host) + "/api/v1/redirect/" + shortId}})
+	err = json.NewEncoder(w).Encode(common.Response{Code: http.StatusOK, Message: "Shorten url generated successfully", Data: map[string]string{"shortened-url": string(r.Host) + "/" + shortId}})
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
@@ -140,9 +138,3 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 		return
 	}	
 }
-
-/*
-https not present
-check if url's host is of same server then prevent
-csrf prevention
-*/
