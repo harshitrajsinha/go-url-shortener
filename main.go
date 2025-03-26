@@ -13,11 +13,6 @@ import (
 	"github.com/supabase-community/supabase-go"
 )
 
-type responseMessage struct{
-	Code int `json:"code"`
-	Message string `json:"message"`
-}
-
 // middleware - to pass Supabase db client to different route handlers
 func SupabaseMiddleware(SupabaseClient *supabase.Client) mux.MiddlewareFunc {
 	const SupabaseClientKey string = "SupabaseClient"
@@ -58,7 +53,7 @@ func main(){
 	router.HandleFunc("/api/v1/shortenurl", routes.HandleShortIdCreation).Methods("POST")
 	router.HandleFunc("/api/v1/redirect/{shortid}", routes.HandleUrlRedirection).Methods("GET")
 	router.HandleFunc("/api/v1/urls", routes.HandleListUrls).Methods("GET")
-	router.HandleFunc("/api/v1/udpate/{shortid}", routes.HandleUrlUpdate).Methods("PUT")
+	router.HandleFunc("/api/v1/update/{shortid}", routes.HandleUrlUpdate).Methods("PUT")
 	router.HandleFunc("/api/v1/delete/{shortid}", routes.HandleUrlDelete).Methods("DELETE")
 	
 	// Activate server

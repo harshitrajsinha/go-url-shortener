@@ -4,22 +4,16 @@ import (
 	"encoding/json"
 	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/harshitrajsinha/go-url-shortener/api/v1/common"
 	"github.com/supabase-community/supabase-go"
 )
 
 type RequestUrl struct{
 	Url string `json:"url"`
-}
-
-type Response struct{
-	Code int `json:"code"`
-	Message string `json:"message"`
-	Reference string `json:"reference,omitempty"`
 }
 
 // Type for inserting data to supabase
@@ -45,40 +39,6 @@ func generateShortId() string{
 	return shortId.String()
 }
 
-func convertIPv6LoopbackToIPv4(ipStr string) string {
-	trimmed := strings.Trim(ipStr, "[]")
-	ip := net.ParseIP(trimmed)
-	if ip == nil {
-		return ipStr
-	}
-
-	if ip.Equal(net.IPv6loopback) {
-		return "127.0.0.1"
-	}
-
-	return ipStr
-}
-
-// Function to fetch client's ip address
-func getClientIpAddr(r *http.Request) string{
-	var clientIpAddr string
-	clientIpAddr = r.Header.Get("X-Forwarded-For")
-	if clientIpAddr != "" {
-		// The client IP is the first one in the list
-		ips := strings.Split(clientIpAddr, ",")
-		if len(ips) > 0 {
-			return strings.TrimSpace(ips[0]) // Return the first IP
-		}
-	}else if clientIpAddr = r.Header.Get("X-Real-IP"); clientIpAddr != ""{
-		// Fallback to X-Real-IP
-		return clientIpAddr
-	}else{
-		// Fallback to remoteAddr
-		return r.RemoteAddr
-	}
-	return ""	
-}
-
 // Main handler
 func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	var requestUrl RequestUrl
@@ -87,13 +47,13 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&requestUrl); err != nil{
 		w.WriteHeader(http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusBadRequest, Message: "Invalid JSON", Reference: "{url:your-url}"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusBadRequest, Message: "Invalid JSON", Reference: "{url:your-url}"})
 		return
 	}
 	if requestUrl.Url == ""{
 		w.WriteHeader(http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusBadRequest, Message: "URL is missing", Reference: "{url:your-url}"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusBadRequest, Message: "URL is missing", Reference: "{url:your-url}"})
 		log.Println("URL is empty")
 		return
 	}
@@ -102,54 +62,40 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	if !govalidator.IsURL(requestUrl.Url){
 		w.WriteHeader(http.StatusForbidden)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusForbidden, Message: "URL is not valid", Reference: "{url:https://some-valid-url.domain}"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusForbidden, Message: "URL is not valid", Reference: "{url:https://some-valid-url.domain}"})
 		log.Println("Requested url is not valid ", requestUrl.Url)
 		return
 	}
 
 	// get client ip address 
-	clientIpAddr := getClientIpAddr(r)
-	var networkID string
-
-	// if ipv6
-	if strings.Contains(clientIpAddr, "]"){
-		indexVal := strings.Index(clientIpAddr, "]:")
-		if indexVal != -1{
-			clientIpAddr = clientIpAddr[:indexVal+1]
-		}
-		networkID = convertIPv6LoopbackToIPv4(clientIpAddr)
-	}else{
-		networkID = strings.Split(clientIpAddr, ":")[0]
-	// 	octet := strings.Split(networkID, ".")
-	// 	_ = octet[len(octet)-1]
-	}
+	clientIpAddr := common.GetClientIpAddr(r)
 	
 	if clientIpAddr == ""{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Error fetching request"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusInternalServerError, Message: "Error fetching request"})
 		log.Println("IP address not received")
 		return
 	}
 
+	// Initialize DB client
 	const SupabaseClientKey string = "SupabaseClient"
-
 	client, ok := r.Context().Value(SupabaseClientKey).(*supabase.Client)
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
 		log.Fatal("Error initializing client for handler")
 		return
 	}
 
 	// check if url already exists
 	var doesURLExists []map[string]interface{}
-	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", networkID).Eq("redirect_url", requestUrl.Url).Execute()
+	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", clientIpAddr).Eq("redirect_url", requestUrl.Url).Execute()
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
 		log.Fatal("Error checking existing url in database")
 		return
 	}
@@ -158,7 +104,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 		// If data already exists
 		w.WriteHeader(http.StatusConflict)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusConflict, Message: "URL already shorten", Reference: string(data)})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusConflict, Message: "URL already shorten", Data: doesURLExists})
 		log.Println("URL already exists in database")
 		return
 	}	
@@ -168,28 +114,28 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	if shortId == "" {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Error shortening URL, try after sometime"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusInternalServerError, Message: "Error shortening URL, try after sometime"})
 		log.Println("Shortid not generated")
 		return
 	}
 	
 	// Insert into database
-	var newData DataToInsert = DataToInsert{RedirectURL: requestUrl.Url, ShortID: shortId, ClientIP: networkID}
+	var newData DataToInsert = DataToInsert{RedirectURL: requestUrl.Url, ShortID: shortId, ClientIP: clientIpAddr}
 	_, _, err = client.From("go_url_shortner").Insert(newData, false, "", "", "").Execute()
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Error shortening URL, try after sometime"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusInternalServerError, Message: "Error shortening URL, try after sometime"})
 		log.Fatal("Error while inserting data to supabase db")
 		return
 	}
 
 	// send response
-	err = json.NewEncoder(w).Encode(Response{Code: http.StatusOK, Message: "Shorten url generated successfully", Reference: string(r.Host) + "/api/v1/redirect/" + shortId})
+	err = json.NewEncoder(w).Encode(common.Response{Code: http.StatusOK, Message: "Shorten url generated successfully", Data: map[string]string{"shortened-url": string(r.Host) + "/api/v1/redirect/" + shortId}})
 	if err != nil{
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Response{Code: http.StatusInternalServerError, Message: "Failed to generate short url, try after sometime"})
+		json.NewEncoder(w).Encode(common.Response{Code: http.StatusInternalServerError, Message: "Failed to generate short url, try after sometime"})
 		log.Fatal("Error while sending response")
 		return
 	}	
