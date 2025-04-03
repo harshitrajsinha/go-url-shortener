@@ -1,18 +1,16 @@
 # GShortify
 
-## 📋 <a name="table">Table of Contents</a>
-
-1. ⭐ Introduction
-2. 🔨 Tech Stack
-3. 📜 Features
-
-## <a name="introduction">⭐ Introduction</a>
+## ⭐ Introduction</a>
 
 GShortify, a URL Shortener application built to demonstrate intermediate CRUD operations that can be performed using Golang. It involves the creation and consumption of APIs, allowing to shorten and manage URLs efficiently, while showcasing key concepts such as data handling, routing, and database interaction.
 
-## <a name="tech-stack">🔨 Tech Stack</a>
+![GShortify](./assets/gshortify-landscape.png)
 
-- HTML/CSS (Frontend)
+## [Visit Site](https://gshortify.vercel.app/)
+
+## 🔨 Tech Stack</a>
+
+- HTML/CSS/Javascript (Frontend)
 - Go (Backend)
 - Supabase (Database)
 
