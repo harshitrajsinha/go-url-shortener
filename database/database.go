@@ -15,13 +15,11 @@ var err error
 func init() {
 
 	//Load supabase variables from env file
-	err = godotenv.Load()
-	if err != nil{
-		log.Fatal("Error setting up env vars - ", err)
-	}
+	_ = godotenv.Load("/")
+
 	supabase_url := os.Getenv("SUPABASE_URL")
 	supabase_key := os.Getenv("SUPABASE_KEY")
-	
+
 	log.Println("Initializing Supabase Client...")
 
 	// Initialize supabase client
