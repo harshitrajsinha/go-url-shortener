@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "handler.go",
-      "use": "@vercel/go"
+      "use": "@vercel/go",
+      "config": {
+        "includeFiles": ["static/**/*", "templates/*", "assets/**/*"]
+      }
     }
   ],
   "routes": [
