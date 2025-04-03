@@ -31,59 +31,56 @@ func HandleUrlRedirection(w http.ResponseWriter, r *http.Request) {
 	var shortID string = queryParams["shortid"]
 
 	// Get shortid from path variable
-	if shortID == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusBadRequest, Message: "shortID is missing", Reference: "/api/v1/redirect/XXXXXXXX"})
-		log.Println("Error shortid is missing")
-		return
-	} else if len(shortID) != 8 {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusBadRequest, Message: "Invalid shortID", Reference: "/api/v1/redirect/XXXXXXXX"})
-		log.Println("insufficient shortID length")
-		return
-	}
+	if shortID != "" && shortID != "favicon.ico" {
 
-	// get client ip address
-	clientIpAddr := common.GetClientIpAddr(r)
+		if len(shortID) != 8 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(common.Response{Code: http.StatusBadRequest, Message: "Invalid shortID", Reference: "/api/v1/redirect/XXXXXXXX"})
+			log.Println("insufficient shortID length")
+			return
+		}
 
-	if clientIpAddr == "" {
-		err := errors.New("ip address not received")
-		panic(err)
-	}
+		// get client ip address
+		clientIpAddr := common.GetClientIpAddr(r)
 
-	// Instantiate db client
-	const SupabaseClientKey string = "SupabaseClient"
-	client, ok := r.Context().Value(SupabaseClientKey).(*supabase.Client)
-	if !ok {
-		err := errors.New("error initializing client for handler")
-		panic(err)
-	}
+		if clientIpAddr == "" {
+			err := errors.New("ip address not received")
+			panic(err)
+		}
 
-	// get redirect url
-	var rowData []map[string]interface{}
-	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", clientIpAddr).Eq("short_id", shortID).Execute()
-	if err != nil {
-		panic(err)
-	}
-	err = json.Unmarshal(data, &rowData)
-	if err != nil {
-		panic(err)
-	}
+		// Instantiate db client
+		const SupabaseClientKey string = "SupabaseClient"
+		client, ok := r.Context().Value(SupabaseClientKey).(*supabase.Client)
+		if !ok {
+			err := errors.New("error initializing client for handler")
+			panic(err)
+		}
 
-	if len(rowData) == 0 {
-		// Redirect URL not found
-		w.WriteHeader(http.StatusNotFound)
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusNotFound, Message: "Redirect URL not found", Reference: "Length of shortid must be 8"})
-		log.Println("Redirect url not found")
-		return
-	} else {
-		// Redirect to URL
-		w.Header().Set("Location", rowData[0]["original_url"].(string))
-		w.WriteHeader(http.StatusPermanentRedirect)
-		http.Redirect(w, r, rowData[0]["original_url"].(string), http.StatusPermanentRedirect)
-		return
+		// get redirect url
+		var rowData []map[string]interface{}
+		data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", clientIpAddr).Eq("short_id", shortID).Execute()
+		if err != nil {
+			panic(err)
+		}
+		err = json.Unmarshal(data, &rowData)
+		if err != nil {
+			panic(err)
+		}
+
+		if len(rowData) == 0 {
+			// Redirect URL not found
+			w.WriteHeader(http.StatusNotFound)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(common.Response{Code: http.StatusNotFound, Message: "Redirect URL not found", Reference: "Length of shortid must be 8"})
+			log.Println("Redirect url not found")
+			return
+		} else {
+			// Redirect to URL
+			w.Header().Set("Location", rowData[0]["original_url"].(string))
+			w.WriteHeader(http.StatusPermanentRedirect)
+			http.Redirect(w, r, rowData[0]["original_url"].(string), http.StatusPermanentRedirect)
+			return
+		}
 	}
 }

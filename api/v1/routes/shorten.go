@@ -47,7 +47,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 		if r := recover(); r != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(common.Response{Code: http.StatusInternalServerError, Message: "Internal Server Error"})
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			log.Println("Error occured: ", r)
 			debug.PrintStack()
 		}
@@ -59,13 +59,13 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&requestUrl); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusBadRequest, Message: "Invalid JSON", Reference: "{url:your-url}"})
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 	if requestUrl.Url == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusBadRequest, Message: "URL is missing", Reference: "{url:your-url}"})
+		http.Error(w, "URL is missing", http.StatusBadRequest)
 		log.Println("URL is empty")
 		return
 	}
@@ -74,7 +74,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	if !govalidator.IsURL(requestUrl.Url) {
 		w.WriteHeader(http.StatusForbidden)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusForbidden, Message: "URL is not valid", Reference: "{url:https://some-valid-url.domain}"})
+		http.Error(w, "URL is not valid", http.StatusForbidden)
 		log.Println("Requested url is not valid ", requestUrl.Url)
 		return
 	}
@@ -87,7 +87,7 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	if parsedURL.Scheme != "https" {
 		w.WriteHeader(http.StatusForbidden)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusForbidden, Message: "URL is not valid", Reference: "{url:https://some-valid-url.domain}"})
+		http.Error(w, "URL is not valid - URL should start with https://", http.StatusForbidden)
 		log.Println("Requested url is not valid ", requestUrl.Url)
 		return
 	}
@@ -110,17 +110,21 @@ func HandleShortIdCreation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// check if url already exists
-	var doesURLExists []map[string]interface{}
+	var doesURLExists interface{}
 	data, _, err := client.From("go_url_shortner").Select("*", "exact", false).Eq("client_ip_addr", clientIpAddr).Eq("original_url", requestUrl.Url).Execute()
 	if err != nil {
 		panic(err)
 	}
-	json.Unmarshal(data, &doesURLExists)
-	if len(doesURLExists) != 0 {
+	err = json.Unmarshal(data, &doesURLExists)
+	if err != nil {
+		panic(err)
+	}
+	if len(doesURLExists.([]interface{})) != 0 {
 		// If data already exists
+		shortId := doesURLExists.([]interface{})[0].(map[string]interface{})["short_id"]
 		w.WriteHeader(http.StatusConflict)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(common.Response{Code: http.StatusConflict, Message: "URL already shorten", Data: doesURLExists})
+		http.Error(w, "URL already shorten ["+string(r.Host)+"/"+shortId.(string)+"]", http.StatusConflict)
 		log.Println("URL already exists in database")
 		return
 	}
