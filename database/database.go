@@ -15,7 +15,7 @@ var err error
 func init() {
 
 	//Load supabase variables from env file
-	_ = godotenv.Load("/")
+	_ = godotenv.Load()
 
 	supabase_url := os.Getenv("SUPABASE_URL")
 	supabase_key := os.Getenv("SUPABASE_KEY")
