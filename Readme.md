@@ -1,9 +1,4 @@
-<div align="center">
- 
-  <br />
-
-  <h2 align="center">GShortify (GO Crud Operations)</h2>
-</div>
+# GShortify
 
 ## 📋 <a name="table">Table of Contents</a>
 
@@ -33,7 +28,7 @@ GShortify, a URL Shortener application built to demonstrate intermediate CRUD op
 | ------ | ---------------------------------- | ------------------------------------------------ |
 | GET    | `/api/v1/routes/redirect/:shortid` | Redirect to original URL                         |
 | GET    | `/api/v1/routes/urls`              | List all URLs and corresponding shorten id       |
-| POST   | `/api/v1/routes/shortenurl`        | Create shorten id and shorten URL                |
+| POST   | `/api/v1/routes/shorten`           | Create shorten id and shorten URL                |
 | PUT    | `/api/v1/routes/update/:shortid`   | Update original URL                              |
 | DELETE | `/api/v1/routes/update/:shortid`   | Update original URL and corresponding shorten id |
 
@@ -76,7 +71,7 @@ GShortify, a URL Shortener application built to demonstrate intermediate CRUD op
 
 <summary style="font-size: 18px;">Shorten long URL</summary>
 
-### `POST` /api/v1/shortenurl
+### `POST` /api/v1/shorten
 
 `Request`
 
@@ -90,10 +85,14 @@ GShortify, a URL Shortener application built to demonstrate intermediate CRUD op
 
 ```go
 {
-  "code": 200,
+  "code": 201,
   "message": "Shorten url generated successfully",
   "data": {
-    "shortened-url": "localhost:8080/z5VAZ6bN"
+    "shortened-url": [
+      {
+        "localhost:8080/z5VAZ6bN"
+      }
+    ]
   }
 }
 ```
@@ -120,11 +119,13 @@ GShortify, a URL Shortener application built to demonstrate intermediate CRUD op
 {
   "code": 200,
   "message": "Data updated successfully",
-  "data": {
+  "data": [
+    {
     "previous-url": "https://google.com",
     "original-url": "https://google.co.in",
     "short-id": "tw9apb98"
-  }
+    }
+  ]
 }
 ```
 
@@ -138,11 +139,6 @@ GShortify, a URL Shortener application built to demonstrate intermediate CRUD op
 
 `Response`
 
-```go
-{
-  "code": 200,
-  "message": "Redirect URL deleted successfully"
-}
-```
+`204 No Content`
 
 </details>

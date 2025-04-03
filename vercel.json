@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "cmd/myapp/main.go",
+      "src": "handlers.go",
       "use": "@vercel/go"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/cmd/myapp/main.go"
+      "dest": "handlers.go"
     }
   ]
 }
